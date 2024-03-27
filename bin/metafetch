@@ -1,0 +1,108 @@
+#!/bin/sh
+# name:    metafetch
+# purpose: clone rpi metadata
+# code:    kaloyan@triplehelix-consulting.com
+
+FETCHER=https://github.com/
+GITFETCHER=git@github.com:
+BRANCH=kirkstone
+
+LONGSFX=$(head -c 1000 /dev/random | tr -dc 'a-z')
+SFX=$(expr " $LONGSFX" : ".*\(.\{3\}\)")
+unset LONGSFX
+
+DEFMETADIR=$HOME/yocto/$SFX/metadata
+DEFBUILDIR=$HOME/yocto/$SFX/rpi4
+
+TARGET=core-image-thc
+
+XNAME=$(basename $0)
+
+say() { printf ":: $XNAME :: $*\n"; }
+die() { say $* && exit 0 || kill $$; }
+use() {    # print options and quit
+
+    printf "
+usage:
+\t $XNAME <options>
+    option        \t purpose                 \t default
+    -h            \t print this              \t usage
+    -d            \t dry run                 \t wet run
+    -g            \t switch to git protocol  \t https protocol
+    -r <branch>   \t branch                  \t $BRANCH
+    -m <metadir>  \t metadata directory      \t $DEFMETADIR
+    -b <buildir>  \t build directory         \t $DEFBUILDIR
+
+"
+    die
+}
+
+confirm() {    # get confirmation or quit
+
+    read -p "please confirm (y/n) " choix
+    [ "$choix" == "y" ] && say confirmed || die
+}
+
+[ "$SFX" ] || die try again
+
+while getopts ":m:b:r:hgd" option; do    # parce command-line options
+
+    case $option in
+
+        m ) METADIR=$OPTARG;;
+        b ) BUILDIR=$OPTARG;;
+        r ) BRANCH=$OPTARG;;
+        g ) FETCHER=$GITFETCHER;;
+        d ) DRYRUN=yes;;
+        h ) use;;
+        * ) use;;
+    esac
+done
+
+# check system path
+[ "$METADIR" ] || METADIR=$DEFMETADIR
+[ "$BUILDIR" ] || BUILDIR=$DEFBUILDIR
+[ -d $METADIR ] || mkdir -p $METADIR || die $? cannot create $METADIR
+[ -d $BUILDIR ] || mkdir -p $BUILDIR || die $? cannot create $BUILDIR
+METADIR=$(realpath $METADIR) && say "metadata:\t $METADIR" || die $? cannot find $METADIR
+BUILDIR=$(realpath $BUILDIR) && say "build:\t $BUILDIR" || die $? cannot find $BUILDIR
+say "branch:\t $BRANCH"
+say "protocol:\t $FETCHER"
+
+declare -A REPO
+REPO=(    # associative git repository array
+    [yoctoproject/poky.git]=$METADIR/poky
+    [openembedded/meta-openembedded.git]=$METADIR/oe
+    [agherzan/meta-raspberrypi]=$METADIR/rpi/meta-raspberrypi
+    [kaloyanski/meta-thc.git]=$METADIR/thc/meta-thc
+    [TripleHelixConsulting/rpiconf.git]=$BUILDIR/conf
+)
+
+[ "$DRYRUN" ] || confirm
+
+for repo in ${!REPO[@]}; do    # clone repositories
+
+    command="git clone -b $BRANCH $FETCHER$repo ${REPO[$repo]}"
+    say $command
+    [ "$DRYRUN" ] || $command
+done
+
+[ "$DRYRUN" ] && die
+
+# adjust bibtbake layer configuration
+sed -i s#/home/yocto/layer#$METADIR#g $BUILDIR/conf/bblayers.conf || die sed $?
+
+# bitbake environment initialisation
+OEINIT=oe-init-build-env
+cd $METADIR/poky && pwd || die $? cannot find $METADIR/poky
+[ -f $OEINIT ] && . ./$OEINIT $BUILDIR || die $? cannot find $OEINIT
+
+bitbake-layers show-layers
+
+echo && say "how to start a new build"
+printf "
+cd $METADIR/poky
+. ./$OEINIT $BUILDIR
+bitbake $TARGET
+
+"

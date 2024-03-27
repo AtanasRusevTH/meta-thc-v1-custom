@@ -1,0 +1,43 @@
+This README file contains information on the contents of the meta-thc layer.
+Please see https://kaloyanski.github.io/meta-thc for details.
+
+Dependencies
+============
+
+  URI: git@github.com:yoctoproject/poky.git
+  branch: kirkstone
+
+  URI: git@github.com:openembedded/meta-openembedded.git
+  branch: kirkstone
+
+  URI: git@github.com:agherzan/meta-raspberrypi
+  branch: kirkstone  
+
+
+Maintainer: Kaloyan Krastev <kaloyan at triplehelix-consulting dot com>
+
+Table of Contents
+=================
+
+  I. Adding the meta-thc layer to your build
+ II. Build
+III. Message
+
+
+I. Adding the meta-thc layer to your build
+=================================================
+
+Run 'bitbake-layers add-layer meta-thc'.
+
+II. Build
+=================================================
+
+Run 'bitbake core-image-thc'.
+
+III. Message
+=================================================
+
+If you are interested in this project, we will be glad to know and potentially collaborate. In this case, please contact <office@triplehelix-consulting.com>.
+
+See https://kaloyanski.github.io/meta-thc for details.
+

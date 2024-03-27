@@ -1,0 +1,66 @@
+#!/bin/sh
+# name:    burn
+# purpose: copy a wic image to sd-card
+# code:    kaloyan@triplehelix-consulting.com
+
+DEFDEVICE=sda
+DEFIMAGE=core-image-thc
+DEFBUILD=/home/yocto/kalo
+DEFMACHINE=raspberrypi4-64
+XNAME=`basename $0`
+
+die() { echo $* && exit 0 || kill $$; }
+use() {    # print options and quit
+
+    printf "
+usage:
+\t $XNAME <command-line options>
+    option        \t purpose                 \t default
+    -d <device>   \t device                  \t $DEFDEVICE
+    -i <image>    \t image                   \t $DEFIMAGE
+    -b <buildir>  \t build directory         \t $DEFBUILD
+    -m <machine>  \t machine                 \t $DEFMACHINE
+    -x            \t execute                 \t dry run
+    -h            \t print this              \t usage
+"
+    die
+}
+
+while getopts ":d:i:b:m:xh" option; do    # parce command line
+
+    case $option in
+
+        d ) DEVICE=$OPTARG;;
+        i ) IMAGE=$OPTARG;;
+        b ) BUILD=$OPTARG;;
+        m ) MACHINE=$OPTARG;;
+        x ) COPY=yes;;
+        h ) use;;
+        * ) die unexpected command-line option;;
+    esac
+done
+
+[ "$DEVICE" ] || DEVICE=$DEFDEVICE
+[ "$IMAGE" ] || IMAGE=$DEFIMAGE
+[ "$BUILD" ] || BUILD=$DEFBUILD
+[ "$MACHINE" ] || MACHINE=$DEFMACHINE
+
+DEPLOY=$BUILD/tmp/deploy/images/$MACHINE
+SOURCE=${IMAGE}-$MACHINE.wic
+
+[ -e "$DEPLOY/$SOURCE" ] || die cannot find $DEPLOY/$SOURCE
+
+COMMAND="sudo dd if=$SOURCE of=/dev/$DEVICE status=progress"
+
+cd $DEPLOY
+
+[ "$COPY" ] && $COMMAND || printf "
+cd $DEPLOY
+$COMMAND
+
+# execution
+$XNAME $* -x
+
+"
+
+
